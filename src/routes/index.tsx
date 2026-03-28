@@ -1,19 +1,40 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Button } from "@/components/ui/button"
+import { HeroVideoBackground } from "@/components/hero/HeroVideoBackground"
+import { getHeroPreview } from "@/server/get-hero-preview"
 
-export const Route = createFileRoute("/")({ component: App })
+export const Route = createFileRoute("/")({
+  loader: async () => {
+    const hero = await getHeroPreview()
 
-function App() {
+    return { hero }
+  },
+  component: HomePage,
+})
+
+function HomePage() {
+  const { hero } = Route.useLoaderData()
+
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
+    <main className="bg-background text-foreground">
+      <HeroVideoBackground
+        asset={hero.asset}
+        eyebrow={hero.eyebrow}
+        heading={hero.heading}
+        subheading={hero.subheading}
+      />
+
+      <section className="mx-auto max-w-6xl px-6 py-16">
+        <div className="max-w-3xl space-y-4">
+          <h2 className="text-2xl font-semibold">
+            Server function video config
+          </h2>
+          <p className="leading-7 text-muted-foreground">
+            The home route now loads typed hero data through a TanStack Start
+            server function. This is cleaner than a hardcoded localhost fetch
+            and easier to swap with MediaFlows data next.
+          </p>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }
