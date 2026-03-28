@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useId, useMemo } from "react"
 import type { HeroVideoAsset } from "@/lib/video/types"
 import { buildHeroVideoUrls } from "@/lib/cloudinary/urls"
 import { HeroFallback } from "./HeroFallback"
@@ -17,15 +17,23 @@ export function HeroVideoBackground({
   subheading,
 }: HeroVideoBackgroundProps) {
   const urls = useMemo(() => buildHeroVideoUrls(asset), [asset])
-  const [showFullVideo, setShowFullVideo] = useState(false)
+  const playerId = useId().replace(/:/g, "")
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setShowFullVideo(true)
-    }, 3000)
+    if (!window.cloudinary?.videoPlayer) return
+    if (asset.previewUrl) return
 
-    return () => window.clearTimeout(timer)
-  }, [])
+    const player = window.cloudinary.videoPlayer(playerId, {
+      controls: false,
+      muted: true,
+      autoplay: true,
+      loop: true,
+      playsinline: true,
+      fluid: true,
+    })
+
+    player.source(asset.publicId)
+  }, [asset.publicId, asset.previewUrl, playerId])
 
   return (
     <section className="relative overflow-hidden">
@@ -35,40 +43,36 @@ export function HeroVideoBackground({
           title={asset.title}
         />
 
-        <video
-          className="absolute inset-0 h-full w-full object-cover"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster={urls.posterImageUrl}
-          aria-label={asset.title}
-        >
-          {urls.previewSources.map((source) => (
-            <source
-              key={`${source.width}-${source.media || "default"}`}
-              src={source.src}
-              media={source.media}
-              type="video/mp4"
-            />
-          ))}
-        </video>
-
-        {showFullVideo ? (
+        {asset.previewUrl ? (
           <video
             className="absolute inset-0 h-full w-full object-cover"
             autoPlay
             muted
             loop
             playsInline
-            preload="none"
+            preload="metadata"
             poster={urls.posterImageUrl}
-            aria-hidden="true"
+            aria-label={asset.title}
           >
-            <source src={urls.fullVideoUrl} type="video/mp4" />
+            {urls.previewSources.map((source) => (
+              <source
+                key={`${source.width}-${source.media || "default"}`}
+                src={source.src}
+                media={source.media}
+                type="video/mp4"
+              />
+            ))}
           </video>
-        ) : null}
+        ) : (
+          <video
+            id={playerId}
+            className="cld-video-player absolute inset-0 h-full w-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+            poster={urls.posterImageUrl}
+          />
+        )}
 
         <div className="absolute inset-0 bg-black/35" />
 

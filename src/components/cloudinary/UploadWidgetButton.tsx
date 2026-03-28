@@ -1,17 +1,7 @@
 import { useEffect, useRef, useState } from "react"
+import { notifyLatestAssetReady } from "@/lib/events/mediaflows"
 
-declare global {
-  interface Window {
-    cloudinary?: {
-      createUploadWidget: (
-        options: Record<string, unknown>,
-        callback: (error: unknown, result: any) => void
-      ) => { open: () => void }
-    }
-  }
-}
-
-async function waitForLatestAsset(publicId: string, tries = 12, delay = 2000) {
+async function waitForLatestAsset(publicId: string, tries = 15, delay = 2000) {
   for (let i = 0; i < tries; i++) {
     try {
       const res = await fetch("/api/debug/latest-asset", {
@@ -47,13 +37,11 @@ export function UploadWidgetButton() {
       const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
       if (!cloudName || !uploadPreset) {
-        console.error("[upload-widget] missing env values")
         if (mounted) setStatus("error")
         return
       }
 
       if (!window.cloudinary?.createUploadWidget) {
-        console.error("[upload-widget] cloudinary widget script not ready")
         if (mounted) setStatus("error")
         return
       }
@@ -80,33 +68,20 @@ export function UploadWidgetButton() {
               return
             }
 
-            console.log("[upload-widget] callback result:", result)
-
             if (result?.event === "success") {
               const uploadedPublicId = result?.info?.public_id
 
-              console.log(
-                "[upload-widget] uploaded public id:",
-                uploadedPublicId
-              )
-
-              if (!uploadedPublicId) {
-                window.location.reload()
-                return
-              }
+              if (!uploadedPublicId) return
 
               if (mounted) setStatus("waiting")
 
               const found = await waitForLatestAsset(uploadedPublicId)
 
               if (found) {
-                window.location.reload()
-              } else {
-                console.warn(
-                  "[upload-widget] latest asset not detected in time, reloading anyway"
-                )
-                window.location.reload()
+                notifyLatestAssetReady(uploadedPublicId)
               }
+
+              if (mounted) setStatus("ready")
             }
           }
         )
@@ -130,9 +105,7 @@ export function UploadWidgetButton() {
     <button
       type="button"
       onClick={() => widgetRef.current?.open()}
-      disabled={
-        status === "loading" || status === "error" || status === "waiting"
-      }
+      disabled={status !== "ready"}
       className="inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {status === "loading" && "Loading uploader..."}
